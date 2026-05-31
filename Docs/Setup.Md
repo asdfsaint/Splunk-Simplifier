@@ -1,13 +1,32 @@
-#Setup notes
-I made an isolated proxmox network topology with vmbr0,vmbr1 and 2 with 0 being my network and vmbr1 and 2 being my isolated networks where I will be adding my Ubuntu 24.04 lts server for splunk and Windows 11 Virtual machine with sysmon.
-Splunk and the windows 11 machine only talk to eachother on the Vmbr1 linux bridge and vmbr2 will be used for my kali linux attack machine which is on my personal laptop and windows to talk to eachother only.
-I've updated my ubuntu machine and configured my network configurations and installed splunk. Ive configured UFW to deny everything coming in and out besides port 8000 and 22 from only inside the home network and with a complex 20 character password and enabling HTTPS on the splunk web UI.
-Splunk starts on boot, I will be adding an LLM thru llama.cpp most likely a 3-4b model because of hardware limitations
+# Setup Notes
 
--- Network --
-Vmbr0 = Home network
-vmbr1 = Windows 11 and Ubuntu VM
-vmbr2 = Kali linux vm and Windows 11 vm
-Splunk IP = 192.168.68.53 port 8000
-Splunk version: 10.4.0
- 
+## Network Topology
+I made an isolated Proxmox network topology with vmbr0, vmbr1, and vmbr2. vmbr0 is my home network. vmbr1 is the isolated attack lab network (Windows 11 + Ubuntu Splunk server). vmbr2 is reserved for Kali Linux.
+
+## Ubuntu Splunk Server
+Updated Ubuntu 24.04 LTS, configured network, installed Splunk. UFW configured to deny all inbound/outbound except port 8000 and 22 from inside the home network only. Complex 20-character password set, HTTPS enabled on Splunk web UI. Splunk must be started as root.
+
+- IP: 192.168.10.10 (ens18)
+- Username: splunk
+- Splunk version: 10.4.0
+- Start command: sudo /opt/splunk/bin/splunk start
+
+## Windows 11 VM (2026-05-30)
+- OS: Windows 11 25H2
+- Network: vmbr1 (isolated)
+- VirtIO drivers installed
+- Local account (no Microsoft account)
+- Sysmon downloaded, pending install
+- Splunk Universal Forwarder pending install → 192.168.10.10:9997
+
+## Network Summary
+- vmbr0 = Home network
+- vmbr1 = Windows 11 VM + Ubuntu Splunk server (isolated)
+- vmbr2 = Kali Linux VM
+
+## Pending
+- Start Splunk: sudo /opt/splunk/bin/splunk start
+- Enable receiver: splunk enable listen 9997
+- Install Sysmon on Windows 11
+- Install and configure Splunk Universal Forwarder pointing to 192.168.10.10:9997
+- Verify Sysmon events appear in Splunk at 192.168.10.10:8000
