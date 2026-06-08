@@ -3,8 +3,9 @@
 ## Status
 
 - The network and isolation are built and tested. They work.
-- The Splunk pipeline is not working yet. No logs are flowing and no detections exist.
-- Anything marked in progress below is not done. I have not faked any results.
+- The Splunk pipeline is live. Sysmon events flow from the Windows victim into Splunk and I can search them.
+- The detection layer and the LLM reporting tool are not built yet.
+- Anything under Not done yet is not finished. I have not faked any results.
 
 ## Network Topology
 
@@ -31,7 +32,7 @@ Ubuntu 24.04 LTS running Splunk 10.4.0. The server is dual homed. One leg is on 
 - Home IP: 192.168.68.157 (ens19)
 - Username: splunk
 - Splunk web UI: http://192.168.68.157:8000 (home side only)
-- Start command: sudo /opt/splunk/bin/splunk start (it has to run as root)
+- Runs as a dedicated splunk service account, not root, with systemd boot-start. Comes up on boot, no manual start needed.
 - 20 character password set, HTTPS enabled on the web UI
 
 UFW is set to deny all inbound and outbound by default. I only open what the lab actually needs.
@@ -56,7 +57,7 @@ Here is ip a, ip_forward set to 0, and the UFW rules on the server.
 - Network: vmbr1, 192.168.10.20, no gateway (isolated)
 - VirtIO drivers installed
 - Local account, no Microsoft account
-- Sysmon and the Universal Forwarder were set up earlier, but I have not verified they are running or forwarding yet, so I am treating them as not confirmed. The forwarder should point to 192.168.10.10:9997.
+- Sysmon and the Universal Forwarder are running and forwarding to 192.168.10.10:9997. Details are in the Splunk Pipeline section below.
 
 Here is the VM in Proxmox with its single NIC on vmbr1.
 
@@ -87,14 +88,49 @@ I also confirmed Kali can see the victim at layer 2, since the victim MAC showed
 
 Note: I do not have screenshots saved for the Kali nmap scan or the Kali ARP table yet. I will add them when I re-run the scan after Splunk is started.
 
-## Pending
+## Splunk Pipeline
 
-These are not done. They are in progress.
+This works now. Sysmon events flow from the Windows victim all the way into Splunk.
 
-- Start Splunk. It is not running yet, which is why 9997 showed closed instead of open: sudo /opt/splunk/bin/splunk start
-- Enable the receiver, then re-scan and 9997 should show open: splunk enable listen 9997
-- Confirm or install Sysmon on Windows 11 with the SwiftOnSecurity config
-- Confirm or install the Universal Forwarder, set inputs to the Sysmon log and outputs to 192.168.10.10:9997
-- Create a sysmon index and install the Splunk Add-on for Sysmon on the server
-- Verify Sysmon events show up in Splunk at http://192.168.68.157:8000
-- Build the detection layer (MITRE, Sigma) and the LLM reporting tool later
+Done and verified:
+
+- Splunk runs as a dedicated service account, not root, with systemd boot-start configured properly.
+- Dropped Splunk's minimum free disk space guard from 5000MB to 500MB in server.conf. It was blocking every search until I did.
+- Sysmon is running on the Windows VM and actively generating events.
+- outputs.conf on the forwarder points to 192.168.10.10:9997.
+- The Universal Forwarder service is running on Windows.
+
+Here is the Splunk service on Ubuntu. Active, running as the splunk account, boot-start enabled.
+
+![Splunk systemd service status](../images/splunk-service-status.png)
+
+Splunk listening on 8000, 8089, and 9997. Port 9997 is the forwarder receiver.
+
+![Splunk listening ports](../images/splunk-listening-ports.png)
+
+The forwarder service running on the Windows victim.
+
+![SplunkForwarder service running](../images/windows-forwarder-running.png)
+
+### inputs.conf on the forwarder
+
+I created inputs.conf on the Windows Universal Forwarder to monitor the Sysmon event log channel. This took a lot of troubleshooting.
+
+- PowerShell here-string syntax kept breaking because of the brackets in the stanza header.
+- Notepad saved the file with a UTF-8 BOM, which made Splunk silently ignore the whole file. Fixed by saving as ANSI.
+- Then I hit errorCode=5 access denied. The forwarder could not read the Sysmon channel. Fixed by switching the SplunkForwarder service to run as LocalSystem.
+
+### Pipeline confirmed
+
+index=sysmon | stats count by EventCode returns real Sysmon data with rich fields.
+
+![Sysmon events in Splunk](../images/splunk-sysmon-search.png)
+
+I also took snapshots of all three VMs (Splunk Ubuntu, Windows victim, Kali) as backups.
+
+## Not done yet
+
+- Sideload the Splunk Add-on for Sysmon. Egress is locked to 53 and 123 so I cannot pull it directly.
+- Build the detection layer: MITRE ATT&CK mapping, Sigma rules, Atomic Red Team.
+- Build the LLM reporting tool.
+- Full review of the README.
