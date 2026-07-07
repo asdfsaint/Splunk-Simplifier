@@ -131,6 +131,6 @@ I also took snapshots of all three VMs (Splunk Ubuntu, Windows victim, Kali) as 
 ## Not done yet
 
 - Sideload the Splunk Add-on for Sysmon. Egress is locked to 53 and 123 so I cannot pull it directly.
-- Build the detection layer: MITRE ATT&CK mapping, Sigma rules, Atomic Red Team.
+- Build out the detection layer further: MITRE ATT&CK mapping, Sigma rules, more Atomic Red Team tests. First test (T1059.001, obfuscated PowerShell) is done, see Docs/Detections.md.
 - Build the LLM reporting tool.
 - Full review of the README.
